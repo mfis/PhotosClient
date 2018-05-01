@@ -4,7 +4,7 @@
 
 	<groupId>mfi.photosclient</groupId>
 	<artifactId>photosclient</artifactId>
-	<version>3.3.0</version>
+	<version>3.3.1</version>
 
 	<name>PhotosClient</name>
 	<packaging>jar</packaging>

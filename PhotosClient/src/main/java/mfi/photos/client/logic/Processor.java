@@ -75,6 +75,37 @@ public class Processor {
 		return rows;
 	}
 
+	public void renameAlbum(int index, String newAlbumName) {
+
+		try {
+			if (syncModel.getAlbums().get(index).getSyncStatus() != SyncStatus.LOKAL) {
+				System.out.println("rename=" + syncModel.getAlbums().get(index).getName() + " new=" + newAlbumName);
+
+				GalleryView galleryViewNew = photoServerConnection
+						.readGalleryView(syncModel.getAlbums().get(index).getKey());
+				galleryViewNew.setGalleryname(newAlbumName);
+				galleryViewNew.setKey(Synchronizer.keyFromName(newAlbumName));
+				galleryViewNew.setBaseURL(lookupGalleryViewBaseUrl(galleryViewNew.getKey()));
+
+				photoServerConnection.renameGallery(syncModel.getAlbums().get(index).getKey(), galleryViewNew);
+			}
+
+			synchronizer.renameLocalAlbum(syncModel, syncModel.getAlbums().get(index).getName(), newAlbumName);
+
+			gui.viewMessage("");
+			checkSyncStatus();
+
+		} catch (Exception ex) {
+			gui.viewMessage("Es ist ein Fehler aufgetreten!");
+			StringWriter sw = new StringWriter();
+			PrintWriter pw = new PrintWriter(sw);
+			ex.printStackTrace(pw);
+			System.out.println(sw.toString());
+			gui.viewMessage(sw.toString());
+			return;
+		}
+	}
+
 	private void checkSyncStatus() throws Exception {
 
 		gui.clearTable();
@@ -232,10 +263,8 @@ public class Processor {
 			return 0;
 		}
 
-		String rootDirName = properties.getProperty("uploadRootDirName");
-		String rootUrl = properties.getProperty("uploadRootURL");
+		String baseUrl = lookupGalleryViewBaseUrl(album.getKey());
 
-		String baseUrl = rootUrl + "/" + rootDirName + "/" + album.getKey() + "/";
 		GalleryView galleryView = new GalleryView(album.getKey(), album.getName(), album.getPhotos().size(), users,
 				baseUrl, album.lookupAlbumHash());
 
@@ -334,6 +363,13 @@ public class Processor {
 		}
 
 		return exceptionCounter;
+	}
+
+	private String lookupGalleryViewBaseUrl(String albumKey) {
+		String rootDirName = properties.getProperty("uploadRootDirName");
+		String rootUrl = properties.getProperty("uploadRootURL");
+		String baseUrl = rootUrl + "/" + rootDirName + "/" + albumKey + "/";
+		return baseUrl;
 	}
 
 	private void viewStatusMessage(Album album, String albumStatus, int totalPhotosToProcess, int totalPhotosProcessed,

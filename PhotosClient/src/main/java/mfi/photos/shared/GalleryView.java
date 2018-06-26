@@ -217,4 +217,16 @@ public class GalleryView {
 		this.sortKey = sortKey;
 	}
 
+	public void setKey(String key) {
+		this.key = key;
+	}
+
+	public void setGalleryname(String galleryname) {
+		this.galleryname = galleryname;
+	}
+
+	public void setBaseURL(String baseURL) {
+		this.baseURL = baseURL;
+	}
+
 }

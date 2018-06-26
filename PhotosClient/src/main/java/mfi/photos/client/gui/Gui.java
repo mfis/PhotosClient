@@ -242,6 +242,24 @@ public class Gui extends JFrame implements ActionListener {
 			}
 		};
 
+		table.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				int col = table.columnAtPoint(e.getPoint());
+				if (col == 2) {
+					int row = table.getSelectedRow();
+					String oldAlbumName = (String) tableModel.getValueAt(row, col);
+					String newAlbumName = StringUtils
+							.trimToNull((String) JOptionPane.showInputDialog(frame, "Neuer Album-Name:",
+									"Album umbenennen", JOptionPane.PLAIN_MESSAGE, null, null, oldAlbumName));
+					if (newAlbumName != null && !StringUtils.equals(oldAlbumName, newAlbumName)) {
+						viewMessage("");
+						processor.renameAlbum(row, newAlbumName);
+					}
+				}
+			}
+		});
+
 		table.getTableHeader().setPreferredSize(new Dimension(100, 30));
 		table.getTableHeader().addMouseListener(new MouseAdapter() {
 			@Override

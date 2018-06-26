@@ -45,34 +45,6 @@ public class Synchronizer {
 		VIDEO_TYPES.add("m4v");
 	}
 
-	// public static void main(String[] args) {
-	//
-	// File[] listFiles = new File("/Users/.../").listFiles((FileFilter)
-	// DirectoryFileFilter.DIRECTORY);
-	// for (File dir : listFiles) {
-	//
-	// List<File> unfilteredList = (List<File>) FileUtils.listFiles(dir,
-	// FileFilterUtils.trueFileFilter(),
-	// FileFilterUtils.trueFileFilter());
-	//
-	// Map<String, String> names = new HashMap<>();
-	// for (File file : unfilteredList) {
-	// String name = StringUtils.substringBeforeLast(file.getName(),
-	// ".").toLowerCase();
-	// String suffix = StringUtils.substringAfterLast(file.getName(),
-	// ".").toLowerCase();
-	// if (PHOTO_TYPES.contains(suffix) || VIDEO_TYPES.contains(suffix)) {
-	// if (names.containsKey(name) && !names.get(name).equals(suffix)) {
-	// System.out.println("Dublette: " + dir.getName() + " - " + name + " (" +
-	// file.getName() + ")");
-	// } else {
-	// names.put(name, suffix);
-	// }
-	// }
-	// }
-	// }
-	// }
-
 	public void lookupSyncStatus(SyncModel syncModel, PhotosServerConnection photoServerConnection) throws Exception {
 
 		syncModel.getAlbums().clear();
@@ -123,6 +95,19 @@ public class Synchronizer {
 				album.setPhotoRemoteNamesOutOfSync(album.photoRemoteNamesAsList());
 				album.setSyncStatus(SyncStatus.LOKAL);
 			}
+		}
+	}
+
+	public void renameLocalAlbum(SyncModel syncModel, String nameOld, String nameNew) {
+
+		String pathBase = syncModel.getLocalBasePath();
+		if (!StringUtils.endsWith(pathBase, "/")) {
+			pathBase += "/";
+		}
+		File fileOld = new File(pathBase + nameOld);
+		boolean ok = fileOld.renameTo(new File(pathBase + nameNew));
+		if (!ok) {
+			throw new RuntimeException("renaming not successful");
 		}
 	}
 
@@ -180,7 +165,7 @@ public class Synchronizer {
 		photo.setLocalHash(syncStatusHash);
 	}
 
-	private String keyFromName(String name) {
+	public static String keyFromName(String name) {
 
 		String albumKey = name;
 		albumKey = StringUtils.replace(albumKey, "ä", "ae");

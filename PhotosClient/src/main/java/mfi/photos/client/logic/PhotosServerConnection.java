@@ -38,8 +38,7 @@ public class PhotosServerConnection {
 	private String credentialPass;
 	private String encryptionSecret;
 
-	public PhotosServerConnection(String url, String credentialUser, String credentialPass,
-			String encryptionSecret) {
+	public PhotosServerConnection(String url, String credentialUser, String credentialPass, String encryptionSecret) {
 		this.url = url;
 		this.credentialUser = credentialUser;
 		this.credentialPass = credentialPass;
@@ -108,6 +107,23 @@ public class PhotosServerConnection {
 		sendPost(parameters, Timeout.SHORT);
 	}
 
+	public void renameGallery(String keyOld, GalleryView galleryViewNew)
+			throws UnsupportedEncodingException, HttpException, IOException, GeneralSecurityException {
+
+		System.out.println("renameGallery");
+		galleryViewNew.compressItems();
+		Gson gson = new GsonBuilder().create();
+		String json = gson.toJson(galleryViewNew);
+		System.out.println(json);
+		String asB64 = Base64.getEncoder().encodeToString(json.getBytes("utf-8"));
+		Map<String, String> parameters = new HashMap<String, String>();
+		parameters.put("login_user", credentialUser);
+		parameters.put("login_pass", credentialPass);
+		parameters.put("renameGallery", asB64);
+		parameters.put("keyOld", keyOld);
+		sendPost(parameters, Timeout.SHORT);
+	}
+
 	public Map<String, String> readAlbumKeysAndHashes() throws Exception {
 
 		System.out.println("readAlbumKeysAndHashes");
@@ -152,14 +168,7 @@ public class PhotosServerConnection {
 
 		System.out.println("readPhotoNamesAndHashes");
 
-		Gson gson = new GsonBuilder().create();
-		Map<String, String> parameters = new HashMap<String, String>();
-		parameters.put("login_user", credentialUser);
-		parameters.put("login_pass", credentialPass);
-		parameters.put("readalbum", "");
-		parameters.put("album_key", album.getKey());
-		String respronse = sendPost(parameters, Timeout.SHORT);
-		GalleryView galleryView = gson.fromJson(respronse, GalleryView.class);
+		GalleryView galleryView = readGalleryView(album.getKey());
 
 		for (GalleryView.Picture item : galleryView.getPictures()) {
 			Photo photo = album.lookupPhotoByRemoteName(item.getName());
@@ -172,6 +181,19 @@ public class PhotosServerConnection {
 		}
 
 		album.setHasRemotePhotoData(true);
+	}
+
+	public GalleryView readGalleryView(String albumKey) throws HttpException, IOException, GeneralSecurityException {
+
+		Gson gson = new GsonBuilder().create();
+		Map<String, String> parameters = new HashMap<String, String>();
+		parameters.put("login_user", credentialUser);
+		parameters.put("login_pass", credentialPass);
+		parameters.put("readalbum", "");
+		parameters.put("album_key", albumKey);
+		String respronse = sendPost(parameters, Timeout.SHORT);
+		GalleryView galleryView = gson.fromJson(respronse, GalleryView.class);
+		return galleryView;
 	}
 
 	public void cleanUp(SyncModel syncModel)

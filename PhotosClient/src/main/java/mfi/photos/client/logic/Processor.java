@@ -18,7 +18,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import mfi.photos.client.gui.Gui;
 import mfi.photos.client.model.Album;
-import mfi.photos.client.model.Dimension;
 import mfi.photos.client.model.Photo;
 import mfi.photos.client.model.SyncModel;
 import mfi.photos.client.model.SyncStatus;
@@ -79,7 +78,8 @@ public class Processor {
 
 		try {
 			if (syncModel.getAlbums().get(index).getSyncStatus() != SyncStatus.LOKAL) {
-				System.out.println("rename=" + syncModel.getAlbums().get(index).getName() + " new=" + newAlbumName);
+				System.out.println(
+						"rename=" + syncModel.getAlbums().get(index).getName() + " new=" + newAlbumName);
 
 				GalleryView galleryViewNew = photoServerConnection
 						.readGalleryView(syncModel.getAlbums().get(index).getKey());
@@ -87,10 +87,12 @@ public class Processor {
 				galleryViewNew.setKey(Synchronizer.keyFromName(newAlbumName));
 				galleryViewNew.setBaseURL(lookupGalleryViewBaseUrl(galleryViewNew.getKey()));
 
-				photoServerConnection.renameGallery(syncModel.getAlbums().get(index).getKey(), galleryViewNew);
+				photoServerConnection.renameGallery(syncModel.getAlbums().get(index).getKey(),
+						galleryViewNew);
 			}
 
-			synchronizer.renameLocalAlbum(syncModel, syncModel.getAlbums().get(index).getName(), newAlbumName);
+			synchronizer.renameLocalAlbum(syncModel, syncModel.getAlbums().get(index).getName(),
+					newAlbumName);
 
 			gui.viewMessage("");
 			checkSyncStatus();
@@ -141,7 +143,8 @@ public class Processor {
 			for (int u = 0; u < users.length; u++) {
 				if (albumKeysAndUsers.containsKey(album.getKey())) {
 					userFlags[u] = albumKeysAndUsers.get(album.getKey()).contains(users[u]);
-					if (u == 0 && albumKeysAndUsers.get(album.getKey()).size() == 0 && album.getHashRemote() != null) {
+					if (u == 0 && albumKeysAndUsers.get(album.getKey()).size() == 0
+							&& album.getHashRemote() != null) {
 						albumNoUsersCount++;
 					}
 				} else {
@@ -245,7 +248,8 @@ public class Processor {
 
 		if (totalExceptions > 0 || gui.isCancel()) {
 			gui.viewMessage(gui.isCancel() ? "Abgebrochen!"
-					: "Fertig!" + (totalExceptions > 0 ? " - Insgesamt " + totalExceptions + " Fehler." : ""));
+					: "Fertig!"
+							+ (totalExceptions > 0 ? " - Insgesamt " + totalExceptions + " Fehler." : ""));
 		}
 		{
 			gui.viewMessage("");
@@ -265,8 +269,8 @@ public class Processor {
 
 		String baseUrl = lookupGalleryViewBaseUrl(album.getKey());
 
-		GalleryView galleryView = new GalleryView(album.getKey(), album.getName(), album.getPhotos().size(), users,
-				baseUrl, album.lookupAlbumHash());
+		GalleryView galleryView = new GalleryView(album.getKey(), album.getName(), album.getPhotos().size(),
+				users, baseUrl, album.lookupAlbumHash());
 
 		int j = 0;
 
@@ -296,17 +300,16 @@ public class Processor {
 
 					if (photo.isVideo()) {
 
+						// video
+						File resizedVideo = imageProcessing.resizeVideo(photo, 720);
+						remoteFileSize = resizedVideo.length();
+						photoServerConnection.uploadPhoto(new FileInputStream(resizedVideo),
+								resizedVideo.length(), photo.getRemoteName(null), album.getKey());
+
 						// video preview
 						fullSizeImageName = photo.getRemoteName("pre_");
-						resizedImage = imageProcessing.createPreviewImage(photo, 720);
+						resizedImage = imageProcessing.createPreviewImage(resizedVideo);
 						transformedImage = ImageIO.read(new ByteArrayInputStream(resizedImage.getBytes()));
-						Dimension dimVideo = new Dimension(resizedImage.getWidth(), resizedImage.getHeight());
-
-						// video
-						File resizedVideo = imageProcessing.resizeVideo(photo, dimVideo, 720);
-						remoteFileSize = resizedVideo.length();
-						photoServerConnection.uploadPhoto(new FileInputStream(resizedVideo), resizedVideo.length(),
-								photo.getRemoteName(null), album.getKey());
 
 					} else {
 
@@ -341,7 +344,8 @@ public class Processor {
 					}
 					galleryView.addItem(photo.getRemoteName(null), photo.getRemoteThumbnailSize().getHeight(),
 							photo.getRemoteThumbnailSize().getWidth(), photo.getRemoteSize().getHeight(),
-							photo.getRemoteSize().getWidth(), photo.getLocalHash(), photo.getRemoteFileSize());
+							photo.getRemoteSize().getWidth(), photo.getLocalHash(),
+							photo.getRemoteFileSize());
 				}
 
 			} catch (Exception e) {
@@ -349,9 +353,9 @@ public class Processor {
 				PrintWriter pw = new PrintWriter(sw);
 				e.printStackTrace(pw);
 				System.out.println(photo.getLocalFile().getAbsolutePath() + " - " + sw.toString());
-				exceptionString.append(System.getProperty("java.version") + " " + System.getProperty("java.home")
-						+ " Error processing image: " + album.getName() + ": " + photo.getLocalName() + ". "
-						+ sw.toString());
+				exceptionString.append(System.getProperty("java.version") + " "
+						+ System.getProperty("java.home") + " Error processing image: " + album.getName()
+						+ ": " + photo.getLocalName() + ". " + sw.toString());
 				exceptionCounter++;
 			}
 		}
@@ -372,8 +376,8 @@ public class Processor {
 		return baseUrl;
 	}
 
-	private void viewStatusMessage(Album album, String albumStatus, int totalPhotosToProcess, int totalPhotosProcessed,
-			int j, int exceptionCounter) {
+	private void viewStatusMessage(Album album, String albumStatus, int totalPhotosToProcess,
+			int totalPhotosProcessed, int j, int exceptionCounter) {
 
 		String msg = albumStatus + ",   Datei " + j + " von " + album.getPhotoRemoteNamesOutOfSync().size();
 		msg += ",   Gesamt " + (totalPhotosProcessed + j) + " von " + totalPhotosToProcess;
@@ -401,7 +405,8 @@ public class Processor {
 
 		Properties properties = new Properties();
 		try {
-			File file = new File(System.getProperty("user.home") + "/documents/config/photosclient2.properties");
+			File file = new File(
+					System.getProperty("user.home") + "/documents/config/photosclient2.properties");
 			properties.load(new FileInputStream(file));
 			return properties;
 		} catch (Exception e) {

@@ -31,6 +31,7 @@ public class Synchronizer {
 		PHOTO_TYPES.add("jpeg");
 		PHOTO_TYPES.add("png");
 		PHOTO_TYPES.add("bmp");
+		PHOTO_TYPES.add("heic");
 	}
 
 	private static List<String> VIDEO_TYPES = new ArrayList<>();
@@ -45,12 +46,14 @@ public class Synchronizer {
 		VIDEO_TYPES.add("m4v");
 	}
 
-	public void lookupSyncStatus(SyncModel syncModel, PhotosServerConnection photoServerConnection) throws Exception {
+	public void lookupSyncStatus(SyncModel syncModel, PhotosServerConnection photoServerConnection)
+			throws Exception {
 
 		syncModel.getAlbums().clear();
 
 		// LOCAL
-		File[] listFiles = new File(syncModel.getLocalBasePath()).listFiles((FileFilter) DirectoryFileFilter.DIRECTORY);
+		File[] listFiles = new File(syncModel.getLocalBasePath())
+				.listFiles((FileFilter) DirectoryFileFilter.DIRECTORY);
 		for (File file : listFiles) {
 			Album album = new Album(file.getName(), keyFromName(file.getName()));
 			readAlbum(album, file);
@@ -113,8 +116,8 @@ public class Synchronizer {
 
 	private void readAlbum(Album album, File albumDir) {
 
-		List<File> unfilteredList = (List<File>) FileUtils.listFiles(albumDir, FileFilterUtils.trueFileFilter(),
-				FileFilterUtils.trueFileFilter());
+		List<File> unfilteredList = (List<File>) FileUtils.listFiles(albumDir,
+				FileFilterUtils.trueFileFilter(), FileFilterUtils.trueFileFilter());
 
 		Map<String, File> filteredFiles = new HashMap<>();
 		for (File file : unfilteredList) {

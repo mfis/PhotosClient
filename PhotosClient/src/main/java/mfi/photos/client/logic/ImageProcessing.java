@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -55,6 +56,11 @@ public class ImageProcessing {
 		NON_SUPPORTED_PIXEL_FORMATS.add("yuvj422p"); // lower case!
 	}
 
+	private static List<String> NON_NATIVE_PHOTO_FORMATS = new ArrayList<>();
+	static {
+		NON_NATIVE_PHOTO_FORMATS.add("heic");
+	}
+
 	private String ffmpegDir;
 	private String tempFileDir;
 
@@ -63,38 +69,22 @@ public class ImageProcessing {
 		this.tempFileDir = tempFilePath;
 	}
 
-	public ResizedImage createPreviewImage(Photo photo, int maxPixelSmallerSide)
-			throws IOException, InterruptedException {
+	public ResizedImage createPreviewImage(File photoFile) throws IOException, InterruptedException {
 
 		String ffmpegPath = ffmpegDir + "/ffmpeg";
-		String inPath = photo.getLocalFile().getAbsolutePath();
+		String inPath = photoFile.getAbsolutePath();
 		String outPath = tempFileDir + "/photos_frame.bmp";
 
 		FileUtils.deleteQuietly(new File(outPath));
 
-		ProcessBuilder pb = new ProcessBuilder(ffmpegPath, "-i", inPath, "-ss", "00:00:00.000", "-vframes", "1",
-				outPath);
+		ProcessBuilder pb = new ProcessBuilder(ffmpegPath, "-i", inPath, "-ss", "00:00:00.000", "-vframes",
+				"1", outPath);
 		Process p = pb.start();
 
 		if (p.waitFor() > 1) {
 			throw new IOException("error creating single frame: " + p.exitValue());
 		}
-		StringBuilder sb = new StringBuilder();
-		BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
-		BufferedReader er = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-		String x;
-		do {
-			x = in.readLine();
-			if (x != null) {
-				sb.append(x + "\n");
-			}
-		} while (x != null);
-		do {
-			x = er.readLine();
-			if (x != null) {
-				sb.append(x + "\n");
-			}
-		} while (x != null);
+		StringBuilder sb = readProcessResponse(p);
 
 		if (!new File(outPath).exists()) {
 			throw new IOException("error creating single frame: " + sb.toString());
@@ -130,8 +120,27 @@ public class ImageProcessing {
 		return previewImage;
 	}
 
-	public File resizeVideo(Photo photo, Dimension newSize, int basePixelSize)
-			throws IOException, InterruptedException {
+	private StringBuilder readProcessResponse(Process p) throws IOException {
+		StringBuilder sb = new StringBuilder();
+		BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
+		BufferedReader er = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+		String x;
+		do {
+			x = in.readLine();
+			if (x != null) {
+				sb.append(x + "\n");
+			}
+		} while (x != null);
+		do {
+			x = er.readLine();
+			if (x != null) {
+				sb.append(x + "\n");
+			}
+		} while (x != null);
+		return sb;
+	}
+
+	public File resizeVideo(Photo photo, int basePixelSize) throws IOException, InterruptedException {
 
 		FileUtils.deleteQuietly(new File(tempFileDir + "/photos_resized.mp4"));
 
@@ -149,10 +158,13 @@ public class ImageProcessing {
 			throw new IOException("No video stream found: " + photo.getLocalFile().getAbsolutePath());
 		}
 
+		Dimension newSizeLarge = calculateExactSize(new Dimension(streamVideo.width, streamVideo.height),
+				basePixelSize);
+
 		String codec = StringUtils.remove(streamVideo.codec_name + " " + streamVideo.codec_long_name, ".");
 
 		long bitrate = streamVideo.bit_rate > 0 ? streamVideo.bit_rate : streamVideo.max_bit_rate;
-		long targetBitrate = calculateTargetBitrate(basePixelSize, newSize);
+		long targetBitrate = calculateTargetBitrate();
 
 		if (bitrate <= targetBitrate && StringUtils.endsWithIgnoreCase(photo.getLocalFile().getName(), ".mp4")
 				&& StringUtils.containsIgnoreCase(codec, "H264")) {
@@ -171,7 +183,7 @@ public class ImageProcessing {
 				.setAudioCodec("aac") //
 				.setAudioBitRate(65536) //
 				.setVideoCodec("h264") //
-				.setVideoResolution(newSize.getWidth(), newSize.getHeight()) //
+				.setVideoResolution(newSizeLarge.getWidth(), newSizeLarge.getHeight()) //
 				.setVideoBitRate(targetBitrate) //
 				.addExtraArgs("-preset", "slow") //
 				.addExtraArgs("-profile:v", "high", "-level", "4.2"); //
@@ -195,17 +207,36 @@ public class ImageProcessing {
 		return new File(tempFileDir + "/photos_resized.mp4");
 	}
 
-	private long calculateTargetBitrate(int maxPixelSmallerSide, Dimension newSize) {
+	private long calculateTargetBitrate() {
 		return BASE_VIDEO_BITRATE;
 	}
 
 	public BufferedImage rotateImageToZeroDegree(Photo photo)
 			throws IOException, MetadataException, ImageProcessingException, Exception {
 
-		BufferedImage bufferedImage = ImageIO.read(photo.getLocalFile());
+		File fileToProcess = null;
+		if (NON_NATIVE_PHOTO_FORMATS.contains(
+				StringUtils.substringAfterLast(photo.getLocalFile().getName(), ".").toLowerCase())) {
+			String outPath = tempFileDir + "/heic_image.jpg";
+			fileToProcess = new File(outPath);
+			ProcessBuilder pb = new ProcessBuilder("sips", "-s", "format", "jpeg",
+					photo.getLocalFile().getAbsolutePath(), "--out", outPath);
+			Process p = pb.start();
+			if (p.waitFor() > 1) {
+				throw new IOException("error creating single frame: " + p.exitValue());
+			}
+			StringBuilder sb = readProcessResponse(p);
+			if (!new File(outPath).exists()) {
+				throw new IOException("error transforming heic file: " + sb.toString());
+			}
+		} else {
+			fileToProcess = photo.getLocalFile();
+		}
+
+		BufferedImage bufferedImage = ImageIO.read(fileToProcess);
 		BufferedImage transformedImage;
 
-		ImageInformation imageInformation = readImageInformation(photo.getLocalFile());
+		ImageInformation imageInformation = readImageInformation(fileToProcess);
 		if (imageInformation != null) {
 			AffineTransform affineTransform = getExifTransformation(imageInformation);
 			transformedImage = transformImage(bufferedImage, affineTransform);
@@ -217,8 +248,9 @@ public class ImageProcessing {
 
 	public ResizedImage resizeImage(BufferedImage originalImage, int maxPixelSmallerSide, boolean withAlpha) {
 
-		Dimension newSize = calculateOptimalSize(new Dimension(originalImage.getWidth(), originalImage.getHeight()),
-				maxPixelSmallerSide, false);
+		Dimension newSize = calculateOptimalSize(
+				new Dimension(originalImage.getWidth(), originalImage.getHeight()), maxPixelSmallerSide,
+				false);
 
 		return resizeImage(originalImage, newSize, withAlpha);
 	}
@@ -309,7 +341,8 @@ public class ImageProcessing {
 		return new Dimension(newW, newH);
 	}
 
-	private static BufferedImage transformImage(BufferedImage image, AffineTransform transform) throws Exception {
+	private static BufferedImage transformImage(BufferedImage image, AffineTransform transform)
+			throws Exception {
 
 		AffineTransformOp op = new AffineTransformOp(transform, AffineTransformOp.TYPE_BICUBIC);
 
@@ -324,6 +357,7 @@ public class ImageProcessing {
 
 	private static ImageInformation readImageInformation(File imageFile)
 			throws IOException, MetadataException, ImageProcessingException {
+
 		Metadata metadata = ImageMetadataReader.readMetadata(imageFile);
 		Directory directory = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
 		JpegDirectory jpegDirectory = metadata.getFirstDirectoryOfType(JpegDirectory.class);

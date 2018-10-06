@@ -11,6 +11,12 @@ public class Dimension {
 		width = w;
 	}
 
+	public void rotate() {
+		int tempH = height;
+		height = width;
+		width = tempH;
+	}
+
 	public int getHeight() {
 		return height;
 	}

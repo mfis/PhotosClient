@@ -160,6 +160,11 @@ public class ImageProcessing {
 
 		Dimension newSizeLarge = calculateExactSize(new Dimension(streamVideo.width, streamVideo.height),
 				basePixelSize);
+		if (streamVideo.tags.containsKey("rotate")) {
+			if (streamVideo.tags.get("rotate").equals("90") || streamVideo.tags.get("rotate").equals("270")) {
+				newSizeLarge.rotate();
+			}
+		}
 
 		String codec = StringUtils.remove(streamVideo.codec_name + " " + streamVideo.codec_long_name, ".");
 
